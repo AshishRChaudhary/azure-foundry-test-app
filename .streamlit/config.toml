@@ -1,0 +1,3 @@
+[server]
+# Uploaded documents only need to be modest in size for this test app.
+maxUploadSize = 25

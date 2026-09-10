@@ -1,71 +1,101 @@
-# Azure OpenAI test project
+# Azure Foundry Test App
+
+A basic Streamlit document summarizer for exercising Azure AI Foundry
+deployments. Upload a PDF/DOCX/TXT/MD/CSV or paste text, pick a model, and
+get a streamed summary.
 
 ## Setup
 
-The virtual environment lives **outside** this folder, at
-`C:\Users\cashi\.venvs\azure101`, so OneDrive doesn't sync thousands
-of package files.
+```bash
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# macOS/Linux:
+source .venv/bin/activate
 
-Recreate it from scratch:
-
-```powershell
-py -3.13 -m venv C:\Users\cashi\.venvs\azure101
-C:\Users\cashi\.venvs\azure101\Scripts\python.exe -m pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
-## Secrets
+`requirements.lock.txt` holds the full transitive set if you need to
+reproduce the exact environment.
 
-Copy `.env.example` to `.env` and fill in your key:
+## Configuration
+
+Copy `.env.example` to `.env` and fill it in:
 
 ```
 AZURE_OPENAI_API_KEY=<your key>
-AZURE_OPENAI_ENDPOINT=<your endpoint>
+AZURE_OPENAI_ENDPOINT=https://<your-resource>.services.ai.azure.com/openai/v1
 AZURE_OPENAI_DEPLOYMENTS=gpt-5.4-nano,gpt-5.6-sol
 ```
 
-Keep a backup of the key somewhere outside this folder -- `.env` is the only
-copy, and overwriting it loses both the key and your model list.
+`.env` is gitignored and is the only copy of your key -- keep a backup
+somewhere outside the repo.
 
-`.env` is gitignored and must never be committed. `config.py` loads it
-and fails with a clear message if a value is missing.
+### Switching models
 
-## Summarizer app
+The sidebar picker is driven by `AZURE_OPENAI_DEPLOYMENTS`. The **first name
+is the default selection**. Add a model by appending its deployment name and
+refreshing the page; the value is re-read on every run, so no restart is
+needed. Whitespace and duplicates are ignored.
 
-```powershell
-C:\Users\cashi\.venvs\azure101\Scripts\streamlit.exe run app.py
+Names must match the deployment names in the Azure AI Foundry portal exactly
+-- a mismatch surfaces as a 404, and the app says so. Note the endpoint
+advertises Azure's entire catalog (400+ models), but a resource only serves
+what is actually deployed on it.
+
+## Running
+
+```bash
+streamlit run app.py
 ```
 
-Opens at http://localhost:8501. Upload a PDF/DOCX/TXT or paste text, pick a
-model in the sidebar, hit Summarize.
+Opens at http://localhost:8501.
 
-**Switching models.** The picker is driven by one line in `.env`:
+`test_azure_api.py` is a non-UI smoke test that checks the endpoint answers:
 
-```
-AZURE_OPENAI_DEPLOYMENTS=gpt-5.4-nano,gpt-5.6-sol
-```
-
-The **first name is the default selection**. To add a model, append its
-deployment name to the list and refresh the page -- the value is re-read on
-every run, so no server restart is needed. Duplicates and stray whitespace
-are ignored.
-
-Names must match the deployment names in the Azure AI Foundry portal exactly;
-a mismatch shows up as a 404, and the app says so explicitly. Note that the
-endpoint advertises Azure's whole catalog (436 models) but this resource only
-serves what's actually deployed on it.
-
-## Running the API smoke test
-
-VS Code picks up the venv automatically via `.vscode/settings.json`.
-Reload the window if the interpreter doesn't switch.
-
-From a terminal:
-
-```powershell
-C:\Users\cashi\.venvs\azure101\Scripts\python.exe test_azure_api.py
+```bash
+python test_azure_api.py
 ```
 
-## Dependencies
+## Deploying to Streamlit Community Cloud
 
-- `requirements.txt` — direct dependencies, pinned.
-- `requirements.lock.txt` — full transitive set, for exact reproduction.
+1. Push to GitHub (see below).
+2. At https://share.streamlit.io, click **Create app** and point it at this
+   repo, branch `main`, main file `app.py`.
+3. Open **Advanced settings > Secrets** and paste the three values in TOML
+   form -- see `.streamlit/secrets.toml.example`:
+
+   ```toml
+   AZURE_OPENAI_API_KEY = "your-key-here"
+   AZURE_OPENAI_ENDPOINT = "https://your-resource.services.ai.azure.com/openai/v1"
+   AZURE_OPENAI_DEPLOYMENTS = "gpt-5.4-nano,gpt-5.6-sol"
+   ```
+
+4. Deploy.
+
+`config.py` reads environment variables first, then `.env`, then Streamlit
+secrets, so the same code runs locally and deployed with no changes.
+
+**Before deploying, note:** a deployed app is reachable by anyone with the
+URL and calls Azure with *your* key, so every visitor spends your quota.
+Streamlit Cloud has no built-in auth on the free tier. Keep the app private,
+or add a password gate, or use a key with a low spending cap.
+
+## Pushing changes
+
+```bash
+git add -A
+git commit -m "your message"
+git push
+```
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `app.py` | Streamlit UI |
+| `config.py` | Settings (env / .env / Streamlit secrets) and the Azure client |
+| `doc_text.py` | PDF, DOCX and plain-text extraction |
+| `test_azure_api.py` | Non-UI endpoint smoke test |
+| `.streamlit/config.toml` | Upload size limit |

@@ -25,15 +25,13 @@ st.set_page_config(page_title="Doc Summarizer", page_icon="📄", layout="wide")
 # --------------------------------------------------------------------------
 with st.sidebar:
     st.header("Model")
-    st.caption(f"Endpoint: `{urlparse(config.AZURE_OPENAI_ENDPOINT).hostname}`")
-
-    # Re-read on every run, so editing AZURE_OPENAI_DEPLOYMENTS in .env
-    # shows up on a page refresh.
     try:
+        host = urlparse(config.get("AZURE_OPENAI_ENDPOINT")).hostname
         choices = config.deployments()
     except RuntimeError as exc:
         st.error(str(exc))
         st.stop()
+    st.caption(f"Endpoint: `{host}`")
 
     model = st.radio(
         f"Deployment ({len(choices)})",

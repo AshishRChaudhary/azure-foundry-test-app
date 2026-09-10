@@ -1,13 +1,8 @@
-from openai import OpenAI
+"""Smoke test: does the configured endpoint answer?"""
 
 import config
 
-client = OpenAI(
-    base_url=config.AZURE_OPENAI_ENDPOINT,
-    api_key=config.AZURE_OPENAI_API_KEY,
-)
-
-response = client.responses.create(
+response = config.client().responses.create(
     model=config.default_deployment(),
     input="What is the capital of France?",
 )

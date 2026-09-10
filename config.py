@@ -1,7 +1,13 @@
 """Settings and the Azure client.
 
-Everything configurable lives in .env: the endpoint, the API key, and the
-comma-separated list of deployment names shown in the model picker.
+Configuration comes from, in order of precedence:
+
+1. Real environment variables
+2. A local .env file (used when running on your own machine)
+3. Streamlit secrets (used when deployed to Streamlit Community Cloud,
+   which has no .env -- you paste the same keys into the app's Secrets box)
+
+So the same code runs locally and deployed with no changes.
 """
 
 import os
@@ -15,12 +21,27 @@ from openai import OpenAI
 load_dotenv(Path(__file__).with_name(".env"))
 
 
+def _from_streamlit_secrets(name: str) -> str | None:
+    """Look name up in st.secrets, or None if unavailable.
+
+    Wrapped because st.secrets raises when there is no secrets file at
+    all, which is the normal case for a plain local run.
+    """
+    try:
+        import streamlit as st
+
+        return st.secrets[name]
+    except Exception:
+        return None
+
+
 def get(name: str, default: str | None = None) -> str:
     """Return a setting, or raise if it's missing and has no default."""
-    value = os.getenv(name, default)
+    value = os.getenv(name) or _from_streamlit_secrets(name) or default
     if value is None or value == "":
         raise RuntimeError(
-            f"{name} is not set. Add it to .env (see .env.example)."
+            f"{name} is not set. Locally, add it to .env (see .env.example). "
+            "On Streamlit Community Cloud, add it under Settings > Secrets."
         )
     return value
 
@@ -28,11 +49,10 @@ def get(name: str, default: str | None = None) -> str:
 def deployments() -> list[str]:
     """Deployment names from AZURE_OPENAI_DEPLOYMENTS, in order.
 
-    Read fresh on each call so edits to .env show up on a page refresh.
+    Read fresh on each call so config edits show up on a page refresh.
     """
-    raw = get("AZURE_OPENAI_DEPLOYMENTS")
     names = []
-    for name in raw.split(","):
+    for name in get("AZURE_OPENAI_DEPLOYMENTS").split(","):
         name = name.strip()
         if name and name not in names:
             names.append(name)
@@ -56,7 +76,3 @@ def client(timeout: float = 60.0) -> OpenAI:
         api_key=get("AZURE_OPENAI_API_KEY"),
         timeout=timeout,
     )
-
-
-AZURE_OPENAI_API_KEY = get("AZURE_OPENAI_API_KEY")
-AZURE_OPENAI_ENDPOINT = get("AZURE_OPENAI_ENDPOINT")

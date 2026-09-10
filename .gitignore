@@ -12,3 +12,6 @@ env/
 
 # Machine-specific interpreter path
 .vscode/
+
+# Streamlit Cloud secrets (use the dashboard, never commit)
+.streamlit/secrets.toml
